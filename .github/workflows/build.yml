@@ -34,11 +34,13 @@ jobs:
         id: sdk
         shell: bash
         run: |
-          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" \
-            -name sdkmanager -type f | head -n 1)"
+          set -e
+
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" \
+            -name sdkmanager -type f | head -n 1)
 
           if [ -z "$SDKMANAGER" ]; then
-            echo "Android SDK Manager not found"
+            echo "SDK Manager not found"
             exit 1
           fi
 
@@ -47,25 +49,35 @@ jobs:
       - name: Accept Android SDK Licences
         shell: bash
         run: |
-          set -e
-          yes | "${{ steps.sdk.outputs.path }}" --licenses
+          SDKMANAGER="${{ steps.sdk.outputs.path }}"
 
-      - name: Install Android SDK Packages
+          echo "Accepting available SDK licences..."
+
+          yes | "$SDKMANAGER" --licenses || true
+
+          echo "Licence acceptance step completed."
+
+      - name: Install Required Android SDK Packages
         shell: bash
         run: |
           set -e
 
-          "${{ steps.sdk.outputs.path }}" --install \
+          SDKMANAGER="${{ steps.sdk.outputs.path }}"
+
+          "$SDKMANAGER" --install \
             "platform-tools" \
             "platforms;android-34" \
             "build-tools;34.0.0"
+
+          echo "Required Android packages installed."
 
       - name: Verify Project Structure
         shell: bash
         run: |
           set -e
 
-          echo "Repository files:"
+          echo "Checking project structure..."
+
           ls -la
 
           test -f settings.gradle.kts
@@ -80,10 +92,14 @@ jobs:
           gradle-version: '8.9'
 
       - name: Check Gradle Configuration
-        run: gradle tasks --no-daemon --stacktrace
+        run: |
+          gradle tasks --no-daemon --stacktrace
 
-      - name: Build Debug APK
-        run: gradle :app:assembleDebug --no-daemon --stacktrace
+      - name: Build NEO PLUS AI APK
+        run: |
+          gradle :app:assembleDebug \
+            --no-daemon \
+            --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -93,7 +109,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Build Success Report
+      - name: Build Success
         if: success()
-        run: echo "NEO PLUS AI APK built successfully!"
+        run: echo "NEO PLUS AI APK successfully generated!"
         
