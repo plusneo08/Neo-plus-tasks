@@ -1,15 +1,11 @@
 
-name: NEO PLUS AI Android Build
+name: NEO PLUS AI - Android Build
 
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [main, master]
   pull_request:
-    branches:
-      - main
-      - master
+    branches: [main, master]
   workflow_dispatch:
 
 permissions:
@@ -24,10 +20,6 @@ jobs:
     name: Build NEO PLUS AI APK
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: neoplus-ai
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,22 +30,20 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Android SDK packages
+      - name: Install Android SDK
         shell: bash
         run: |
-          set -e
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          set -euo pipefail
 
-          if [ ! -x "$SDKMANAGER" ]; then
-            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
-          fi
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
 
-          if [ ! -x "$SDKMANAGER" ]; then
+          if [ -z "$SDKMANAGER" ]; then
             echo "Android SDK manager not found"
             exit 1
           fi
 
           yes | "$SDKMANAGER" --licenses
+
           "$SDKMANAGER" --install \
             "platform-tools" \
             "platforms;android-34" \
@@ -64,6 +54,12 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Verify project
+        run: |
+          ls -la
+          test -f settings.gradle.kts
+          test -f app/build.gradle.kts
+
       - name: Build Debug APK
         run: gradle :app:assembleDebug --no-daemon --stacktrace
 
@@ -71,7 +67,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: NEO-PLUS-AI-APK
-          path: neoplus-ai/app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
           
